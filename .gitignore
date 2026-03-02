@@ -1,0 +1,45 @@
+# ── Python ────────────────────────────────────────────────────────────────────
+.venv/
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.egg-info/
+dist/
+build/
+*.spec.bak
+.eggs/
+
+# ── PyInstaller ───────────────────────────────────────────────────────────────
+*.spec.bak
+/dist/
+/build/
+
+# ── Dados persistidos pelo backend ────────────────────────────────────────────
+backend/data/*.json
+
+# ── Node / Frontend ───────────────────────────────────────────────────────────
+node_modules/
+frontend/dist/
+frontend/.env.local
+frontend/.env.*.local
+.npm
+
+# ── Variáveis de ambiente ─────────────────────────────────────────────────────
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# ── Logs ──────────────────────────────────────────────────────────────────────
+*.log
+logs/
+
+# ── Editores / IDEs ───────────────────────────────────────────────────────────
+.vscode/settings.json
+.idea/
+*.swp
+*.swo
+.DS_Store
+Thumbs.db
