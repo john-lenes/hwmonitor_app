@@ -43,11 +43,10 @@ def _discover_linux_fans() -> list[FanReading]:
                 continue
 
             label_file = hwmon_dir / f"fan{i}_label"
-            label = (
-                label_file.read_text().strip()
-                if label_file.exists()
-                else f"{chip_name}/fan{i}"
-            )
+            try:
+                label = label_file.read_text().strip() if label_file.exists() else f"{chip_name}/fan{i}"
+            except OSError:
+                label = f"{chip_name}/fan{i}"
 
             min_rpm: Optional[int] = None
             pwm_file = hwmon_dir / f"pwm{i}"
