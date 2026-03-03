@@ -9,13 +9,18 @@ dist/
 build/
 *.spec.bak
 .eggs/
+.pytest_cache/
+.coverage
+.mypy_cache/
+.ruff_cache/
 
 # ── PyInstaller ───────────────────────────────────────────────────────────────
 *.spec.bak
 /dist/
 /build/
 
-# ── Dados persistidos pelo backend ────────────────────────────────────────────
+# ── Docker ────────────────────────────────────────────────────────────────────
+# Não versionar volumes locais gerados pelo Docker
 backend/data/*.json
 
 # ── Node / Frontend ───────────────────────────────────────────────────────────

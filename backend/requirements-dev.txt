@@ -1,0 +1,14 @@
+# Dependências de desenvolvimento (não instaladas em produção / Docker)
+-r requirements.txt
+
+# Testes
+pytest==8.2.0
+pytest-asyncio==0.23.6
+httpx==0.27.0          # cliente assíncrono para TestClient do FastAPI
+
+# Linting / formatação
+ruff==0.4.4
+mypy==1.10.0
+
+# Type stubs
+types-psutil==5.9.5.20240423

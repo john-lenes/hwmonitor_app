@@ -1,0 +1,63 @@
+services:
+  # ── Backend FastAPI ──────────────────────────────────────────────────────────
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+      target: runtime
+    container_name: hardware_monitor_backend
+    restart: unless-stopped
+    # Acesso ao hardware do host: necessário para leitura de sensores e ventoinhas
+    privileged: true
+    pid: host
+    volumes:
+      # Sysfs/procfs do host para leitura de sensores
+      - /sys/class/hwmon:/sys/class/hwmon:ro
+      - /proc:/proc:ro
+      # Volume persistente para perfis de ventoinhas
+      - backend_data:/app/data
+    environment:
+      HOST: "0.0.0.0"
+      PORT: "8765"
+      LOG_LEVEL: "${LOG_LEVEL:-INFO}"
+      POLL_INTERVAL_SECONDS: "${POLL_INTERVAL_SECONDS:-2.0}"
+      FAN_CONTROL_ENABLED: "${FAN_CONTROL_ENABLED:-true}"
+      CORS_ORIGINS: '["http://localhost", "http://localhost:80", "http://frontend"]'
+    ports:
+      # Expõe a porta apenas localmente para não abrir ao exterior
+      - "127.0.0.1:8765:8765"
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8765/api/health')"]
+      interval: 30s
+      timeout: 5s
+      start_period: 15s
+      retries: 3
+    networks:
+      - monitor_net
+
+  # ── Frontend React (Nginx) ────────────────────────────────────────────────────
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      target: runtime
+      args:
+        VITE_API_URL: "http://localhost"
+        VITE_WS_URL: "ws://localhost/ws"
+    container_name: hardware_monitor_frontend
+    restart: unless-stopped
+    ports:
+      - "80:80"
+    depends_on:
+      backend:
+        condition: service_healthy
+    networks:
+      - monitor_net
+
+volumes:
+  backend_data:
+    driver: local
+
+networks:
+  monitor_net:
+    driver: bridge

@@ -29,14 +29,16 @@ class Settings(BaseSettings):
     APP_VERSION: str = "1.0.0"
 
     # Servidor
+    # Em container Docker usa 0.0.0.0; localmente usa 127.0.0.1
     HOST: str = "127.0.0.1"
     PORT: int = 8765
     LOG_LEVEL: str = "INFO"
 
-    # CORS
+    # CORS – em produção restringir à origem do frontend real
     CORS_ORIGINS: List[str] = [
         "http://localhost:5173",   # servidor de dev Vite
         "http://localhost:3000",
+        "http://localhost",        # frontend via Nginx no Docker
         "http://127.0.0.1:5173",
         "app://.",                 # origem do Electron em produção
     ]

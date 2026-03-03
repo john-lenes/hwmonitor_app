@@ -11,7 +11,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 
-from app.api.routes import hardware, fans, profiles
+from app.api.routes import hardware, fans, profiles, health
 from app.core.config import settings
 from app.core.logger import setup_logger
 from app.services.hardware_monitor import HardwareMonitor
@@ -80,6 +80,7 @@ def create_app() -> FastAPI:
     )
 
     # Rotas REST
+    app.include_router(health.router)
     app.include_router(hardware.router, prefix="/api/hardware", tags=["hardware"])
     app.include_router(fans.router, prefix="/api/fans", tags=["fans"])
     app.include_router(profiles.router, prefix="/api/profiles", tags=["profiles"])
