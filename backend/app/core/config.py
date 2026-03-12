@@ -53,6 +53,13 @@ class Settings(BaseSettings):
     # Controle de ventoinhas
     FAN_CONTROL_ENABLED: bool = True
 
+    # Histórico de snapshots em memória (ring buffer)
+    HISTORY_MAX_POINTS: int = 120
+
+    # Rate limiting – requisições de escrita (POST/PUT/PATCH/DELETE) por IP
+    RATE_LIMIT_REQUESTS: int = 60
+    RATE_LIMIT_WINDOW_SECONDS: int = 60
+
 
 settings = Settings()
 

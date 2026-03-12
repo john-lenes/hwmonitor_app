@@ -20,57 +20,75 @@ export const api = {
   // ── Hardware ──────────────────────────────────────────────────────────────
   /** Retorna o snapshot mais recente de hardware. */
   async getSnapshot(): Promise<HardwareSnapshot> {
-    const { data } = await client.get<HardwareSnapshot>('/api/hardware/snapshot')
+    const { data } = await client.get<HardwareSnapshot>('/api/v1/hardware/snapshot')
+    return data
+  },
+
+  /** Retorna os últimos `limit` snapshots do histórico em memória. */
+  async getHistory(limit = 60): Promise<HardwareSnapshot[]> {
+    const { data } = await client.get<HardwareSnapshot[]>('/api/v1/hardware/history', {
+      params: { limit },
+    })
     return data
   },
 
   // ── Ventoinhas ────────────────────────────────────────────────────────────
   /** Retorna todas as ventoinhas detectadas e suas leituras atuais. */
   async getFans(): Promise<FanReading[]> {
-    const { data } = await client.get<FanReading[]>('/api/fans/')
+    const { data } = await client.get<FanReading[]>('/api/v1/fans/')
     return data
   },
 
   async setFanSpeed(fanId: string, percent: number): Promise<void> {
-    await client.post(`/api/fans/${fanId}/speed`, { fan_id: fanId, percent })
+    await client.post(`/api/v1/fans/${fanId}/speed`, { fan_id: fanId, percent })
   },
 
   async restoreFanAuto(fanId: string): Promise<void> {
-    await client.post(`/api/fans/${fanId}/auto`)
+    await client.post(`/api/v1/fans/${fanId}/auto`)
+  },
+
+  /** Define o modo de velocidade de uma ventoinha (quiet / balanced / turbo / auto). */
+  async setFanMode(fanId: string, mode: string): Promise<void> {
+    await client.post(`/api/v1/fans/${fanId}/mode`, { mode })
   },
 
   async restoreAllFansAuto(): Promise<void> {
-    await client.post('/api/fans/auto')
+    await client.post('/api/v1/fans/auto')
   },
 
   // ── Perfis ────────────────────────────────────────────────────────────────
   /** Retorna todos os perfis de ventoinha (padrões + personalizados). */
   async getProfiles(): Promise<FanProfile[]> {
-    const { data } = await client.get<FanProfile[]>('/api/profiles/')
+    const { data } = await client.get<FanProfile[]>('/api/v1/profiles/')
     return data
   },
 
   async getActiveProfile(): Promise<FanProfile> {
-    const { data } = await client.get<FanProfile>('/api/profiles/active')
+    const { data } = await client.get<FanProfile>('/api/v1/profiles/active')
     return data
   },
 
   async createProfile(payload: FanProfileCreate): Promise<FanProfile> {
-    const { data } = await client.post<FanProfile>('/api/profiles/', payload)
+    const { data } = await client.post<FanProfile>('/api/v1/profiles/', payload)
     return data
   },
 
   async updateProfile(id: string, payload: FanProfileUpdate): Promise<FanProfile> {
-    const { data } = await client.put<FanProfile>(`/api/profiles/${id}`, payload)
+    const { data } = await client.put<FanProfile>(`/api/v1/profiles/${id}`, payload)
     return data
   },
 
   async deleteProfile(id: string): Promise<void> {
-    await client.delete(`/api/profiles/${id}`)
+    await client.delete(`/api/v1/profiles/${id}`)
   },
 
   async activateProfile(id: string): Promise<FanProfile> {
-    const { data } = await client.post<FanProfile>(`/api/profiles/${id}/activate`)
+    const { data } = await client.post<FanProfile>(`/api/v1/profiles/${id}/activate`)
+    return data
+  },
+
+  async resetProfile(id: string): Promise<FanProfile> {
+    const { data } = await client.post<FanProfile>(`/api/v1/profiles/${id}/reset`)
     return data
   },
 }

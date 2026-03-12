@@ -13,6 +13,7 @@ services:
     volumes:
       # Sysfs/procfs do host para leitura de sensores
       - /sys/class/hwmon:/sys/class/hwmon:ro
+      - /sys/class/drm:/sys/class/drm:ro
       - /proc:/proc:ro
       # Volume persistente para perfis de ventoinhas
       - backend_data:/app/data

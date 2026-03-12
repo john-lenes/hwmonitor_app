@@ -10,6 +10,11 @@ import { api } from '@/services/api'
 
 /** Número máximo de entradas no histórico (~2 min com intervalo de 2 s). */
 const MAX_HISTORY = 60
+/** Entradas do histórico de RPM das ventoinhas (~3 min a 3 s por entrada). */
+const MAX_FAN_HISTORY = 60
+
+/** Timer do polling de ventoinhas (fora do estado zustand para evitar re-renders). */
+let _fanPollTimer: ReturnType<typeof setInterval> | null = null
 
 interface HistoryEntry {
   timestamp: number
@@ -30,6 +35,8 @@ interface HardwareState {
   snapshot: HardwareSnapshot | null
   history: HistoryEntry[]
   fans: FanReading[]
+  /** Histórico de RPM por ventoinha (id → array de leituras recentes). */
+  fanRpmHistory: Record<string, number[]>
   profiles: FanProfile[]
 
   // Actions
@@ -37,6 +44,8 @@ interface HardwareState {
   fetchProfiles: () => Promise<void>
   activateProfile: (id: string) => Promise<void>
   setFanSpeed: (fanId: string, percent: number) => Promise<void>
+  /** Define o modo de velocidade (quiet / balanced / turbo / auto) e sincroniza a lista. */
+  setFanMode: (fanId: string, mode: string) => Promise<void>
   restoreFanAuto: (fanId: string) => Promise<void>
 }
 
@@ -51,6 +60,7 @@ export const useHardwareStore = create<HardwareState>()(
     snapshot: null,
     history: [],
     fans: [],
+    fanRpmHistory: {},
     profiles: [],
 
     connect() {
@@ -64,6 +74,9 @@ export const useHardwareStore = create<HardwareState>()(
         // Busca inicial de dados
         get().fetchFans()
         get().fetchProfiles()
+        // Polling de RPM das ventoinhas a cada 3 s
+        if (_fanPollTimer) clearInterval(_fanPollTimer)
+        _fanPollTimer = setInterval(() => { get().fetchFans() }, 3000)
       }
 
       ws.onmessage = (event) => {
@@ -97,6 +110,7 @@ export const useHardwareStore = create<HardwareState>()(
           s.status = 'disconnected'
           s.ws = null
         })
+        if (_fanPollTimer) { clearInterval(_fanPollTimer); _fanPollTimer = null }
         // Reconexão automática após 3 segundos
         setTimeout(() => {
           if (get().status === 'disconnected') {
@@ -114,13 +128,22 @@ export const useHardwareStore = create<HardwareState>()(
         ws.close()
         set((s) => { s.ws = null; s.status = 'disconnected' })
       }
+      if (_fanPollTimer) { clearInterval(_fanPollTimer); _fanPollTimer = null }
     },
 
-    /** Busca a lista de ventoinhas detectadas pelo backend. */
+    /** Busca a lista de ventoinhas e atualiza o histórico de RPM. */
     async fetchFans() {
       try {
         const fans = await api.getFans()
-        set((s) => { s.fans = fans })
+        set((s) => {
+          s.fans = fans
+          fans.forEach((fan) => {
+            const hist = s.fanRpmHistory[fan.id] ?? []
+            hist.push(fan.rpm)
+            if (hist.length > MAX_FAN_HISTORY) hist.splice(0, hist.length - MAX_FAN_HISTORY)
+            s.fanRpmHistory[fan.id] = hist
+          })
+        })
       } catch {
         // ignora silenciosamente falhas temporárias de rede
       }
@@ -147,6 +170,11 @@ export const useHardwareStore = create<HardwareState>()(
 
     async setFanSpeed(fanId: string, percent: number) {
       await api.setFanSpeed(fanId, percent)
+      await get().fetchFans()
+    },
+
+    async setFanMode(fanId: string, mode: string) {
+      await api.setFanMode(fanId, mode)
       await get().fetchFans()
     },
 

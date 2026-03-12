@@ -13,7 +13,9 @@ from fastapi.staticfiles import StaticFiles
 
 from app.api.routes import hardware, fans, profiles, health
 from app.core.config import settings
+from app.core.exceptions import register_exception_handlers
 from app.core.logger import setup_logger
+from app.core.rate_limit import RateLimitMiddleware
 from app.services.hardware_monitor import HardwareMonitor
 from app.services.fan_controller import FanController
 from app.services.profile_manager import ProfileManager
@@ -70,6 +72,16 @@ def create_app() -> FastAPI:
         openapi_url="/api/openapi.json",
     )
 
+    # Handlers globais de erro – retornam {success, error, detail, path, timestamp}
+    register_exception_handlers(app)
+
+    # Rate limiting – janela deslizante por IP; apenas métodos mutantes em /api/*
+    app.add_middleware(
+        RateLimitMiddleware,
+        max_requests=settings.RATE_LIMIT_REQUESTS,
+        window_seconds=settings.RATE_LIMIT_WINDOW_SECONDS,
+    )
+
     # CORS – permite o renderer Electron e o servidor de dev Vite
     app.add_middleware(
         CORSMiddleware,
@@ -79,11 +91,14 @@ def create_app() -> FastAPI:
         allow_headers=["*"],
     )
 
-    # Rotas REST
-    app.include_router(health.router)
-    app.include_router(hardware.router, prefix="/api/hardware", tags=["hardware"])
-    app.include_router(fans.router, prefix="/api/fans", tags=["fans"])
-    app.include_router(profiles.router, prefix="/api/profiles", tags=["profiles"])
+    # Rotas versionadas /api/v1/
+    app.include_router(health.router, prefix="/api/v1/health", tags=["health"])
+    app.include_router(hardware.router, prefix="/api/v1/hardware", tags=["hardware"])
+    app.include_router(fans.router, prefix="/api/v1/fans", tags=["fans"])
+    app.include_router(profiles.router, prefix="/api/v1/profiles", tags=["profiles"])
+
+    # Alias de compatibilidade retroativa para o Docker HEALTHCHECK
+    app.include_router(health.router, prefix="/api/health", tags=["health"], include_in_schema=False)
 
     # Endpoint WebSocket
     from app.websocket import ws_router

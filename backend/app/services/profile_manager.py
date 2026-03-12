@@ -25,10 +25,10 @@ _BUILTIN_PROFILES: list[FanProfile] = [
     FanProfile(
         id="builtin_silent",
         name="Silencioso",
-        description="Ultra-silencioso – prioriza o silêncio sobre o resfriamento",
+        description="Prioriza o silêncio. Ventoinhas em baixa velocidade. Ideal para trabalho leve (navegação, textos, reuniões). Pode esquentar mais em tarefas pesadas.",
         sensor_source="cpu_package",
         curve=[
-            CurvePoint(temperature=0, fan_percent=0),
+            CurvePoint(temperature=0,  fan_percent=0),
             CurvePoint(temperature=50, fan_percent=20),
             CurvePoint(temperature=65, fan_percent=40),
             CurvePoint(temperature=80, fan_percent=70),
@@ -39,10 +39,10 @@ _BUILTIN_PROFILES: list[FanProfile] = [
     FanProfile(
         id="builtin_balanced",
         name="Balanceado",
-        description="Equilíbrio padrão entre ruído e resfriamento",
+        description="Equilíbrio entre silêncio e resfriamento. Recomendado para uso diário, jogos leves e multitarefas. Ponto de partida seguro para a maioria dos usuários.",
         sensor_source="cpu_package",
         curve=[
-            CurvePoint(temperature=0, fan_percent=20),
+            CurvePoint(temperature=0,  fan_percent=20),
             CurvePoint(temperature=50, fan_percent=40),
             CurvePoint(temperature=65, fan_percent=60),
             CurvePoint(temperature=75, fan_percent=80),
@@ -54,13 +54,26 @@ _BUILTIN_PROFILES: list[FanProfile] = [
     FanProfile(
         id="builtin_performance",
         name="Performance",
-        description="Resfriamento agressivo – sempre em RPM alto",
+        description="Resfriamento máximo desde o início. Ventoinhas em alta velocidade para manter temperatura baixa. Indicado para jogos intensos, renderização e streaming. Pode ser mais barulhento.",
         sensor_source="cpu_package",
         curve=[
-            CurvePoint(temperature=0, fan_percent=50),
+            CurvePoint(temperature=0,  fan_percent=50),
             CurvePoint(temperature=40, fan_percent=60),
             CurvePoint(temperature=60, fan_percent=80),
             CurvePoint(temperature=75, fan_percent=100),
+        ],
+        is_builtin=True,
+    ),
+    FanProfile(
+        id="builtin_gaming_gpu",
+        name="Gamer (GPU)",
+        description="Controla as ventoinhas pela temperatura da placa de vídeo. Ideal para gamers onde a GPU aquece mais que o processador. Mantém a GPU fria durante sessões longas.",
+        sensor_source="gpu",
+        curve=[
+            CurvePoint(temperature=0,  fan_percent=30),
+            CurvePoint(temperature=50, fan_percent=50),
+            CurvePoint(temperature=70, fan_percent=80),
+            CurvePoint(temperature=80, fan_percent=100),
         ],
         is_builtin=True,
     ),
@@ -108,10 +121,27 @@ class ProfileManager:
                 logger.error("Falha ao carregar perfis: %s", exc)
 
     def _save(self) -> None:
-        user_profiles = [
-            p.model_dump() for p in self._profiles.values() if not p.is_builtin
-        ]
-        _PROFILES_FILE.write_text(json.dumps(user_profiles, indent=2))
+        """
+        Persiste perfis no arquivo JSON.
+
+        Salva:
+        - Perfis criados pelo usuário (não-builtins)
+        - Versões modificadas de perfis builtin (override)
+        """
+        builtin_defaults = {p.id: p for p in _BUILTIN_PROFILES}
+        to_save: list[dict] = []
+        for p in self._profiles.values():
+            if not p.is_builtin:
+                to_save.append(p.model_dump())
+            else:
+                # Salva apenas se diferir do original (excluindo is_active)
+                original = builtin_defaults.get(p.id)
+                if original:
+                    orig_dump = {k: v for k, v in original.model_dump().items() if k != "is_active"}
+                    curr_dump = {k: v for k, v in p.model_dump().items() if k != "is_active"}
+                    if orig_dump != curr_dump:
+                        to_save.append(p.model_dump())
+        _PROFILES_FILE.write_text(json.dumps(to_save, indent=2, default=str))
 
     # ------------------------------------------------------------------
     # CRUD
@@ -137,8 +167,15 @@ class ProfileManager:
         return profile
 
     def update_profile(self, profile_id: str, data: FanProfileUpdate) -> Optional[FanProfile]:
+        """
+        Atualiza um perfil existente.
+
+        Perfis builtin podem ser editados (suas modificações são salvas como
+        overrides no arquivo JSON, mantendo o perfil original como referência).
+        Para resetar um builtin ao padrão, use reset_to_default().
+        """
         profile = self._profiles.get(profile_id)
-        if not profile or profile.is_builtin:
+        if not profile:
             return None
         updated = profile.model_copy(
             update={k: v for k, v in data.model_dump(exclude_none=True).items()}
@@ -146,6 +183,18 @@ class ProfileManager:
         self._profiles[profile_id] = updated
         self._save()
         return updated
+
+    def reset_to_default(self, profile_id: str) -> Optional[FanProfile]:
+        """Restaura um perfil builtin aos seus valores padrão originais."""
+        original = next((p for p in _BUILTIN_PROFILES if p.id == profile_id), None)
+        if not original:
+            return None
+        # Presérva o estado de ativo
+        was_active = self._profiles.get(profile_id, original).is_active
+        restored = original.model_copy(update={"is_active": was_active})
+        self._profiles[profile_id] = restored
+        self._save()
+        return restored
 
     def delete_profile(self, profile_id: str) -> bool:
         profile = self._profiles.get(profile_id)

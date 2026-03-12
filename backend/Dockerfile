@@ -24,6 +24,8 @@ WORKDIR /app
 # Ferramentas de monitoramento de hardware no Linux
 RUN apt-get update && apt-get install -y --no-install-recommends \
     lm-sensors \
+    dmidecode \
+    pciutils \
     && rm -rf /var/lib/apt/lists/*
 
 # Copia pacotes instalados do stage builder
@@ -34,11 +36,6 @@ COPY app/ ./app/
 
 # Copia dados padrão (perfis)
 COPY data/ ./data/
-
-# Usuário não-root para segurança
-RUN groupadd -r appuser && useradd -r -g appuser appuser \
-    && chown -R appuser:appuser /app
-USER appuser
 
 # Variáveis de ambiente padrão (podem ser sobrescritas)
 ENV HOST=0.0.0.0 \
